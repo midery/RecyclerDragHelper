@@ -1,19 +1,19 @@
 package com.liarstudio.recycler_drag_helper.viewholder
 
 /**
- * Интерфейс-маркер для ViewHolder или View, которые участвуют в механизме Drag'N'Drop
- * Этот элемент должен подсвечиваться, когда на него перетаскивают другой,
- * либо подсвечивать позицию, в которую будет помещен перемещаемый View
+ * Marker interface for ViewHolder used to separate other elements during Drag'N'Drop.
+ * This element should be highlighted, when dragged over,
+ * or highlight position in which dragged View should be placed
  */
 interface DragSeparator {
 
     /**
-     * Подсветка элемента
+     * Highlight separator
      */
     fun highlight()
 
     /**
-     * Очистка подсветки (возврат в обычное состояние)
+     * Clear highlight state (return to usual state)
      */
     fun clearHighlight()
 }

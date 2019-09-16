@@ -13,27 +13,28 @@ import kotlin.math.abs
 import kotlin.math.min
 
 /**
- * Помощник в механизме Drag'N'Drop, осуществляемом на [RecyclerView]
+ * Helper, used to simplify Drag'N'Drop logic in [RecyclerView].
  *
- * @param recyclerView внутри которого происходит перетаскивание элементов
- * @param onDragStarted действие, выполняемое после начала перетаскивания
- * @param onDragged действие, выполняемое во время перетаскивания
- * @param onDragCompleted действие, выполняемое после завершения перетаскивания
- * @param onDragCanceled действие, выполняемое при перетаскивании на неактивный элемент
+ * @param recyclerView which elements is used in drag operation
+ * @param onDragStarted action called when drag is started
+ * @param onDragged action called when dragged element is above element, registered in listener
+ * @param onDragCompleted action called when drag operation is successfully completed
+ * @param onDragCanceled action called when drag operation is cancelled (drag element is not consumed)
  */
 open class RecyclerDragHelper(
     private val recyclerView: RecyclerView,
-    val onDragStarted: (id: Long) -> Unit,
-    val onDragged: (id: Long, isPlacedUp: Boolean) -> Unit,
+    val onDragStarted: (id: String) -> Unit,
+    val onDragged: (id: String, isPlacedUp: Boolean) -> Unit,
     val onDragCompleted: () -> Unit,
     val onDragCanceled: () -> Unit
 ) {
 
-    private var lastDragId = -1L // идентификатор последнего перетаскиваемого элемента
-    private var lastScrollTime = -1L // время последнего скролла (в мс)
-    private var lastScrollDuration = -1 // длительность последнего перетаскивания
-    private var lastHighlightPosition = -1 // последняя подсвеченная позиция
-    private var isDragConsumed = false
+    private var lastDragId = UNKNOWN_ID
+    private var lastScrollTime = UNKNOWN_TIME
+    private var lastScrollDuration = UNKNOWN_TIME
+    private var lastHighlightPosition = UNKNOWN_POSITION
+    private val isDragConsumed: Boolean
+        get() = lastDragId == UNKNOWN_ID
 
     protected open var scrollAreaSize =
         recyclerView.context.resources.getDimensionPixelOffset(R.dimen.recycler_scroll_area_size)
@@ -49,34 +50,43 @@ open class RecyclerDragHelper(
     )
 
     /**
-     * Действие, выполняемое в начале Drag'N'Drop
+     * Initialize drag and drop
      *
-     * @param id идентификатор элемента, который будет перетаскиваться
+     * @param id id of dragged element
      */
-    fun initializeDrag(id: Long) {
-        isDragConsumed = false
+    fun initializeDrag(id: String) {
         lastDragId = id
         onDragStarted(id)
     }
 
+    /**
+     * Check if view is drag top border and the element should move faster
+     */
     protected open fun isTopBorder(targetView: View): Boolean =
         targetView.id == R.id.recycler_drag_top || targetView is DragTop || targetView is Toolbar
 
+    /**
+     * Check if view is drag bottom border and the element should move faster
+     */
     protected open fun isBottomBorder(targetView: View) =
         targetView.id == R.id.recycler_drag_bottom || targetView is DragBottom
 
     /**
-     * Размер (в пикселях) скролла при движении внутри списка
+     * Get size of short scroll in pixels.
+     *
+     * Short scroll is used when an element is above RecyclerView and the scroll is moderate.
      */
-    protected open fun getSmallScrollSize(): Int = SMALL_SCROLL_SIZE
+    protected open fun getShortScrollSize(): Int = SMALL_SCROLL_SIZE
 
     /**
-     * Размер (в пикселях) скролла при наведении на нижнюю или вернхюю границы
+     * Get size of a medium scroll in pixels
+     *
+     * Medium scroll is used when an element is above top or bottom border and needs to move faster
      */
     protected open fun getBorderScrollSize(): Int = MEDIUM_SCROLL_SIZE
 
     /**
-     * Задержка на осуществление вычислений, необходимо для более плавного скролла
+     * Get size of calculation timeout used to scroll smoother
      */
     protected open fun getCalculationTimeout(): Int = CALCULATION_TIMEOUT
 
@@ -85,32 +95,31 @@ open class RecyclerDragHelper(
         val view = recyclerView.findChildViewUnder(dx, dy) ?: return
         val viewHolder = recyclerView.findContainingViewHolder(view) ?: return
         if (viewHolder is Draggable && viewHolder.getId() != lastDragId) {
-            val centerY = view.top + view.height / 2f // нахождение центра целевой view
-            val shouldHighlightUp = dy > centerY // необходимо ли подсветить верхний контроллер
+            val centerY = view.top + view.height / 2f // find a center of a view
+            val shouldHighlightUp = dy > centerY
             val layoutPosition = viewHolder.layoutPosition
-            repaintSpaces(llm, layoutPosition, shouldHighlightUp)
+            repaintSeparators(llm, layoutPosition, shouldHighlightUp)
             onDragged(viewHolder.getId(), !shouldHighlightUp)
         }
     }
 
     private fun onDragFinishedInternal() {
-        lastDragId = -1
-        isDragConsumed = true
+        lastDragId = UNKNOWN_ID
         onDragCompleted()
     }
 
     private fun onDragCanceledInternal() {
         if (!isDragConsumed) {
-            isDragConsumed = true
+            lastDragId = UNKNOWN_ID
             recyclerView.post { onDragCanceled() }
         }
     }
 
     /**
-     * Перекраска пустых мест между элементами RecyclerView,
-     * показывающая, в какое место попадет перемещаемый элемент
+     * Paints separators between draggable elements in RecyclerView
+     * This separators are used to show the place draggable element will be placed
      */
-    private fun repaintSpaces(llm: LinearLayoutManager, position: Int, isUp: Boolean) {
+    private fun repaintSeparators(llm: LinearLayoutManager, position: Int, isUp: Boolean) {
         val lastView = llm.findViewByPosition(lastHighlightPosition)
         if (lastView != null) {
             val viewHolder = recyclerView.findContainingViewHolder(lastView)
@@ -131,8 +140,8 @@ open class RecyclerDragHelper(
     }
 
     /**
-     * Скролл recyclerView с учетом позиции перетаскиваемого элемента
-     * и таймингов последнего перетаскивания
+     * Scroll RecyclerView.
+     * Scroll size depends on the position of dragged element, targetView, and last scroll time.
      */
     private fun scrollIfNecessary(targetView: View, dy: Float) {
         val now = System.currentTimeMillis()
@@ -147,21 +156,21 @@ open class RecyclerDragHelper(
                 }
             }
 
-            if (isTopBorder(targetView)) { // Мы находимся в самом верху
+            if (isTopBorder(targetView)) {
                 scrollWithTimingsUpdate(true, getBorderScrollSize())
             }
 
-            if (isBottomBorder(targetView)) { // Мы находимся в самом низу
+            if (isBottomBorder(targetView)) {
                 scrollWithTimingsUpdate(false, getBorderScrollSize())
             }
         }
     }
 
     /**
-     * Скролл с обновлением счетчиков времени
-     * Происходит рассчет времени на анимацию, записывается текущее время, а затем происходит скролл
+     * Scroll with update of last time counters
+     * Computes duration of scroll, gets current time, and then performs smooth scroll.
      */
-    private fun scrollWithTimingsUpdate(isUp: Boolean, scrollSize: Int = getSmallScrollSize()) {
+    private fun scrollWithTimingsUpdate(isUp: Boolean, scrollSize: Int = getShortScrollSize()) {
         val signedScrollSize = if (isUp) -scrollSize else scrollSize
         lastScrollDuration = computeScrollDuration(0, signedScrollSize)
         lastScrollTime = System.currentTimeMillis()
@@ -169,11 +178,11 @@ open class RecyclerDragHelper(
     }
 
     /**
-     * Вычисление длительности анимации скролла
+     * Compute scroll duration
      *
-     * Исходный код взят из стандартного класса [RecyclerView]
+     * Source code from [RecyclerView]s private method
      */
-    private fun computeScrollDuration(dx: Int, dy: Int): Int {
+    private fun computeScrollDuration(dx: Int, dy: Int): Long {
         val absDx = abs(dx)
         val absDy = abs(dy)
         val horizontal = absDx > absDy
@@ -182,12 +191,15 @@ open class RecyclerDragHelper(
         val duration: Int
         val absDelta = (if (horizontal) absDx else absDy).toFloat()
         duration = ((absDelta / containerSize + 1) * 300).toInt()
-        return min(duration, 2000)
+        return min(duration, 2000).toLong()
     }
 
     companion object {
         private const val SMALL_SCROLL_SIZE = 200
         private const val MEDIUM_SCROLL_SIZE = 300
         private const val CALCULATION_TIMEOUT = 250
+        private const val UNKNOWN_POSITION = -1
+        private const val UNKNOWN_TIME = -1L
+        private const val UNKNOWN_ID = "unknown_drag_id"
     }
 }

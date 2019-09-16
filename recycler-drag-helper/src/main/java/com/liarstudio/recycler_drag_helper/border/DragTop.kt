@@ -3,9 +3,8 @@ package com.liarstudio.recycler_drag_helper.border
 import android.view.View
 
 /**
- * Интерфейс-маркер верхней части экрана в механизме Drag'N'Drop с помощью [RecyclerDragHelper]
+ * Marker interface of a top border [View] in Drag'N'Drop operation with [RecyclerDragHelper]
  *
- * [View], для которых необходим быстрый скролл вверх при наведении,
- * должны реализовывать этот интерфейс
+ * DragTop is a [View], which produces faster scroll when dragged over.
  */
 interface DragTop

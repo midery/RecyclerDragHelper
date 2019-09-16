@@ -3,10 +3,9 @@ package com.liarstudio.recycler_drag_helper.listener
 import android.view.DragEvent
 import android.view.View
 
-typealias DragEventCallback = (targetView: View, draggedView: View?, dragEvent: DragEvent) -> Unit
-
 /**
- * Слушатель-обертка Drag'N'Drop у View
+ * Kotlin-style [View.OnDragListener] wrapper to consume [DragEvent] simple.
+ * The main idea and realization is taken from [https://github.com/OOOZH/DragAndDropIT]
  */
 class DragListener constructor(
     private val onDragStart: DragEventCallback? = null,

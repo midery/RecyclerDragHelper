@@ -1,12 +1,12 @@
 package com.liarstudio.recycler_drag_helper.viewholder.id
 
 /**
- * Интерфейс-маркер объекта, имеющего идентификатор
+ * Object with unique Id
  */
 interface HasId {
 
     /**
-     * Функция, возвращающая уникальный идентификатор элемента
+     * Get unique Id
      */
     fun getId(): String
 }
