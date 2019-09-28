@@ -30,17 +30,15 @@ class DraggableController(
                 val shadowBuilder =
                     MediaDragShadowBuilder(itemView)
                 ViewCompat.startDragAndDrop(itemView, clipData, shadowBuilder, null, 0)
-                itemView.alpha = 0.2f
                 onDragStarted(getId())
                 return@setOnLongClickListener true
             }
-
         }
 
         override fun bind(data: DragElement) {
             element = data
-            (itemView as TextView).text = data.id
             itemView.alpha = if (data.isDragged) .2f else 1f
+            (itemView as TextView).text = data.id
         }
 
         override fun getId(): String = element.id

@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun onDragStarted(id: String) {
         screenModel.startDrag(id)
+        render(screenModel)
     }
 
     private fun onDragged(id: String, isPlacedUp: Boolean) {
