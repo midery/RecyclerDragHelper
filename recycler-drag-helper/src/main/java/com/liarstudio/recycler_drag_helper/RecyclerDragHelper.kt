@@ -104,15 +104,24 @@ open class RecyclerDragHelper(
     }
 
     private fun onDragFinishedInternal() {
-        lastDragId = UNKNOWN_ID
+        clearVariables()
         onDragCompleted()
     }
 
     private fun onDragCanceledInternal() {
         if (!isDragConsumed) {
-            lastDragId = UNKNOWN_ID
+            clearVariables()
             recyclerView.post { onDragCanceled() }
         }
+    }
+
+    private fun clearVariables() {
+        val llm = recyclerView.layoutManager as? LinearLayoutManager ?: return
+        clearHighlightOnLastSeparator(llm)
+        lastDragId = UNKNOWN_ID
+        lastHighlightPosition = UNKNOWN_POSITION
+        lastScrollDuration = UNKNOWN_TIME
+        lastScrollTime = UNKNOWN_TIME
     }
 
     /**
@@ -120,6 +129,11 @@ open class RecyclerDragHelper(
      * This separators are used to show the place draggable element will be placed
      */
     private fun repaintSeparators(llm: LinearLayoutManager, position: Int, isUp: Boolean) {
+        clearHighlightOnLastSeparator(llm)
+        highlightSeparatorOnPosition(llm, position, isUp)
+    }
+
+    private fun clearHighlightOnLastSeparator(llm: LinearLayoutManager) {
         val lastView = llm.findViewByPosition(lastHighlightPosition)
         if (lastView != null) {
             val viewHolder = recyclerView.findContainingViewHolder(lastView)
@@ -127,7 +141,13 @@ open class RecyclerDragHelper(
                 viewHolder.clearHighlight()
             }
         }
+    }
 
+    private fun highlightSeparatorOnPosition(
+        llm: LinearLayoutManager,
+        position: Int,
+        isUp: Boolean
+    ) {
         lastHighlightPosition = if (isUp) position + 1 else position - 1
 
         val nextView = llm.findViewByPosition(lastHighlightPosition)
